@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐍 Snake Game</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: white;
+            text-align: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 30px auto;
+            padding: 30px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 20px;
+            box-shadow: 0 0 30px rgba(0,255,100,0.4);
+        }
+        h1 { font-size: 3rem; margin-bottom: 20px; text-shadow: 0 0 20px #0f0; }
+        input, button {
+            padding: 15px 20px;
+            margin: 10px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+        }
+        input { width: 280px; border: none; }
+        button {
+            background: #0f0;
+            color: black;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { transform: scale(1.05); }
+        canvas {
+            background: #111;
+            border: 4px solid #0f0;
+            image-rendering: pixelated;
+            margin: 20px auto;
+            display: block;
+        }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { padding: 12px; border-bottom: 1px solid #0f0; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container" id="start-screen">
+        <h1>🐍 Snake Adventure</h1>
+        <input type="text" id="username" placeholder="Enter username" maxlength="20">
+        <br>
+        <button onclick="startGame()">Play Snake!</button>
+        <br><br>
+        <button onclick="showLeaderboard()">View Leaderboard</button>
+    </div>
+
+    <div class="container hidden" id="game-screen">
+        <h2>Snake - <span id="player-name"></span></h2>
+        <div>Score: <span id="score">0</span></div>
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <p>Use Arrow Keys or WASD</p>
+        <button onclick="endGame()">End Game</button>
+    </div>
+
+    <div class="container hidden" id="leaderboard-screen">
+        <h1>🏆 Global Leaderboard</h1>
+        <table id="leaderboard-table">
+            <thead><tr><th>Rank</th><th>Player</th><th>Score</th><th>Date</th></tr></thead>
+            <tbody></tbody>
+        </table>
+        <button onclick="backToMenu()">Play Again</button>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://oymwlxxasifyttbkpqt.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_335qzV9UbTZ8Nw0gAkez...'; // ← Replace with your real key
+
+        let currentUsername = '';
+
+        // Start Game
+        function startGame() {
+            const input = document.getElementById('username').value.trim();
+            if (!input) return alert("Please enter a username!");
+            currentUsername = input;
+            localStorage.setItem('snakeUsername', input);
+
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            document.getElementById('player-name').textContent = currentUsername;
+
+            initSnakeGame();
+        }
+
+        // Snake Game Logic
+        let snake, food, dx, dy, score, gameInterval, gameOverFlag;
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const grid = 20;
+        const tileCount = canvas.width / grid;
+
+        function initSnakeGame() {
+            snake = [{x:10, y:10}];
+            food = {x:15, y:15};
+            dx = 1; dy = 0;
+            score = 0;
+            gameOverFlag = false;
+            document.getElementById('score').textContent = 0;
+            randomFood();
+            if (gameInterval) clearInterval(gameInterval);
+            gameInterval = setInterval(drawGame, 100);
+        }
+
+        function randomFood() {
+            food = { x: Math.floor(Math.random()*tileCount), y: Math.floor(Math.random()*tileCount) };
+        }
+
+        function drawGame() {
+            if (gameOverFlag) return;
+            const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+
+            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount || snake.some(s => s.x === head.x && s.y === head.y)) {
+                return endGame();
+            }
+
+            snake.unshift(head);
+
+            if (head.x === food.x && head.y === food.y) {
+                score += 10;
+                document.getElementById('score').textContent = score;
+                randomFood();
+            } else {
+                snake.pop();
+            }
+
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#0f0';
+            snake.forEach(s => ctx.fillRect(s.x*grid, s.y*grid, grid-2, grid-2));
+
+            ctx.fillStyle = '#f00';
+            ctx.fillRect(food.x*grid, food.y*grid, grid-2, grid-2);
+        }
+
+        function endGame() {
+            gameOverFlag = true;
+            clearInterval(gameInterval);
+            submitScore(currentUsername, score);
+            alert(`Game Over! Final Score: ${score}`);
+            setTimeout(showLeaderboard, 800);
+        }
+
+        document.addEventListener('keydown', e => {
+            if (gameOverFlag) return;
+            switch(e.key) {
+                case 'ArrowUp': case 'w': case 'W': if(dy!==1){dx=0;dy=-1;} break;
+                case 'ArrowDown': case 's': case 'S': if(dy!==-1){dx=0;dy=1;} break;
+                case 'ArrowLeft': case 'a': case 'A': if(dx!==1){dx=-1;dy=0;} break;
+                case 'ArrowRight': case 'd': case 'D': if(dx!==-1){dx=1;dy=0;} break;
+            }
+        });
+
+        // Submit Score
+        async function submitScore(username, score) {
+            try {
+                await fetch(`${SUPABASE_URL}/rest/v1/scores`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, score })
+                });
+            } catch(e) {}
+        }
+
+        // Leaderboard
+        async function showLeaderboard() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('leaderboard-screen').classList.remove('hidden');
+
+            try {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/scores?select=*&order=score.desc&limit=50`, {
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+                });
+                const data = await res.json();
+                const tbody = document.querySelector('#leaderboard-table tbody');
+                tbody.innerHTML = '';
+                data.forEach((row, i) => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${i+1}</td><td>${row.username}</td><td>${row.score}</td><td>${new Date(row.timestamp).toLocaleDateString()}</td>`;
+                    tbody.appendChild(tr);
+                });
+            } catch(e) {
+                alert("Could not load leaderboard. Check your Supabase key.");
+            }
+        }
+
+        function backToMenu() {
+            document.getElementById('leaderboard-screen').classList.add('hidden');
+            document.getElementById('start-screen').classList.remove('hidden');
+        }
+
+        // Auto load leaderboard if needed
+        window.onload = () => {
+            console.log("Single file Snake Game loaded!");
+        };
+    </script>
+</body>
+</html>
