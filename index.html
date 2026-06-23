@@ -83,6 +83,38 @@
 
         let currentUsername = '';
 
+        // === VISITOR ANALYTICS TRACKING ===
+        async function trackVisitor() {
+            try {
+                const visitorData = {
+                    username: currentUsername || localStorage.getItem('snakeUsername') || 'anonymous',
+                    country: Intl.DateTimeFormat().resolvedOptions().timeZone.split('/')[0] || 'Unknown',
+                    region: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Unknown',
+                    device_type: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
+                    browser: navigator.userAgent.includes('Chrome') ? 'Chrome' :
+                             navigator.userAgent.includes('Firefox') ? 'Firefox' :
+                             navigator.userAgent.includes('Safari') ? 'Safari' : 'Other',
+                    os: navigator.platform,
+                    language: navigator.language,
+                    screen_resolution: `${window.screen.width}x${window.screen.height}`,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    referrer: document.referrer || 'direct'
+                };
+
+                await fetch(`${SUPABASE_URL}/rest/v1/visitor_analytics`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(visitorData)
+                });
+            } catch(e) {
+                console.log("Visitor analytics failed (optional)");
+            }
+        }
+
         // Start Game
         function startGame() {
             const input = document.getElementById('username').value.trim();
@@ -95,6 +127,7 @@
             document.getElementById('player-name').textContent = currentUsername;
 
             initSnakeGame();
+            trackVisitor();        // Track when game starts
         }
 
         // Snake Game Logic
@@ -209,9 +242,10 @@
             document.getElementById('start-screen').classList.remove('hidden');
         }
 
-        // Auto load leaderboard if needed
+        // Load analytics when page opens
         window.onload = () => {
-            console.log("Single file Snake Game loaded!");
+            console.log("Snake Game + Visitor Analytics loaded!");
+            trackVisitor();
         };
     </script>
 </body>
