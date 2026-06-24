@@ -560,7 +560,7 @@
   /* ─────────────────────────────────────────────────────────────
      CONFIG — change BACKEND_URL to your Render/Railway URL
   ───────────────────────────────────────────────────────────── */
-  const BACKEND_URL = 'https://YOUR-BACKEND.onrender.com'; // ← CHANGE THIS
+  const BACKEND_URL = 'https://oymwllxasxifyttbkpqt.supabase.co/functions/v1';
 
   /* ─────────────────────────────────────────────────────────────
      GLOBAL STATE
@@ -972,7 +972,7 @@
     statusEl.textContent = 'Submitting score…';
 
     try {
-      const res = await fetch(`${BACKEND_URL}/api/scores`, {
+      const res = await fetch(`${BACKEND_URL}/scores`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, score: finalScore })
@@ -999,7 +999,7 @@
       <div class="lb-loading"><div class="spinner"></div>Loading scores…</div>`;
 
     try {
-      const res = await fetch(`${BACKEND_URL}/api/leaderboard`);
+      const res = await fetch(`${BACKEND_URL}/leaderboard`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       renderLeaderboard(data.leaderboard || []);
@@ -1089,7 +1089,7 @@
     };
 
     try {
-      await fetch(`${BACKEND_URL}/api/analytics`, {
+      await fetch(`${BACKEND_URL}/analytics`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
