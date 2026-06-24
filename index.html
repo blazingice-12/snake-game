@@ -561,6 +561,7 @@
      CONFIG — change BACKEND_URL to your Render/Railway URL
   ───────────────────────────────────────────────────────────── */
   const BACKEND_URL = 'https://oymwllxasxifyttbkpqt.supabase.co/functions/v1';
+  const SUPABASE_ANON_KEY = 'sb_publishable_335qzV9UbTZ8NwOgAKezkw_RyhqRlqV';
 
   /* ─────────────────────────────────────────────────────────────
      GLOBAL STATE
@@ -974,7 +975,7 @@
     try {
       const res = await fetch(`${BACKEND_URL}/scores`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
         body: JSON.stringify({ username, score: finalScore })
       });
 
@@ -999,7 +1000,9 @@
       <div class="lb-loading"><div class="spinner"></div>Loading scores…</div>`;
 
     try {
-      const res = await fetch(`${BACKEND_URL}/leaderboard`);
+      const res = await fetch(`${BACKEND_URL}/leaderboard`, {
+        headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       renderLeaderboard(data.leaderboard || []);
@@ -1091,7 +1094,7 @@
     try {
       await fetch(`${BACKEND_URL}/analytics`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
         body: JSON.stringify(payload)
       });
     } catch (e) {
