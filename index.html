@@ -1,276 +1,1137 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🐍 Snake Game</title>
-    <style>
-        * { margin:0; padding:0; box-sizing:border-box; }
-        body {
-            font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-            color: white;
-            text-align: center;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container {
-            max-width: 600px;
-            margin: 30px auto;
-            padding: 30px;
-            background: rgba(0,0,0,0.7);
-            border-radius: 20px;
-            box-shadow: 0 0 30px rgba(0,255,100,0.4);
-        }
-        h1 { font-size: 3rem; margin-bottom: 20px; text-shadow: 0 0 20px #0f0; }
-        input, button {
-            padding: 15px 20px;
-            margin: 10px;
-            font-size: 1.2rem;
-            border-radius: 50px;
-        }
-        input { width: 280px; border: none; }
-        button {
-            background: #0f0;
-            color: black;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        button:hover { transform: scale(1.05); }
-        canvas {
-            background: #111;
-            border: 4px solid #0f0;
-            image-rendering: pixelated;
-            margin: 20px auto;
-            display: block;
-        }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { padding: 12px; border-bottom: 1px solid #0f0; }
-        .hidden { display: none; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🐍 Snake Adventure</title>
+  <style>
+    /* ── Reset & tokens ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0f1a;
+      --surface:   #151828;
+      --card:      #1c2035;
+      --border:    #2a2f4a;
+      --accent:    #00e676;
+      --accent2:   #00bcd4;
+      --danger:    #ff5252;
+      --gold:      #ffd740;
+      --silver:    #b0bec5;
+      --bronze:    #ff8a65;
+      --text:      #e8eaf6;
+      --muted:     #7986cb;
+      --font:      'Segoe UI', system-ui, sans-serif;
+      --mono:      'Courier New', monospace;
+      --radius:    12px;
+      --glow:      0 0 20px rgba(0,230,118,.25);
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Animated grid background ──────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,230,118,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,230,118,.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Screens ──────────────────────────────────────────────── */
+    .screen {
+      display: none;
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+    }
+    .screen.active { display: flex; flex-direction: column; align-items: center; }
+
+    /* ── Username screen ──────────────────────────────────────── */
+    #screen-username {
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .logo {
+      font-size: clamp(2.5rem, 8vw, 4.5rem);
+      font-weight: 900;
+      letter-spacing: -2px;
+      color: var(--accent);
+      text-shadow: var(--glow);
+      margin-bottom: 8px;
+    }
+    .logo span { color: var(--text); }
+
+    .tagline {
+      color: var(--muted);
+      font-size: 1rem;
+      margin-bottom: 48px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 36px;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .card h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 24px;
+      color: var(--text);
+    }
+
+    label {
+      display: block;
+      font-size: .8rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 14px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 1rem;
+      font-family: var(--font);
+      outline: none;
+      transition: border-color .2s;
+    }
+    input[type="text"]:focus { border-color: var(--accent); box-shadow: var(--glow); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+      width: 100%;
+      margin-top: 20px;
+    }
+    .btn-primary:hover { background: #00ff87; box-shadow: var(--glow); transform: translateY(-1px); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-danger {
+      background: var(--danger);
+      color: #fff;
+    }
+    .btn-danger:hover { opacity: .85; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    .error-msg {
+      color: var(--danger);
+      font-size: .85rem;
+      margin-top: 8px;
+      min-height: 20px;
+    }
+
+    /* ── Game screen ──────────────────────────────────────────── */
+    #screen-game {
+      padding: 16px;
+      gap: 16px;
+    }
+
+    .game-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 520px;
+      padding: 0 4px;
+    }
+
+    .player-tag {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: .9rem;
+      color: var(--muted);
+    }
+    .player-tag strong { color: var(--accent); }
+
+    .score-display {
+      text-align: center;
+    }
+    .score-display .score-label {
+      font-size: .7rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .score-display .score-value {
+      font-size: 2rem;
+      font-weight: 900;
+      color: var(--accent);
+      font-family: var(--mono);
+      line-height: 1;
+    }
+
+    /* Canvas wrapper */
+    .canvas-wrap {
+      position: relative;
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: 0 0 40px rgba(0,230,118,.1);
+    }
+
+    #gameCanvas {
+      display: block;
+      background: var(--surface);
+    }
+
+    /* Overlay (pause / game over / countdown) */
+    .canvas-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(13,15,26,.88);
+      backdrop-filter: blur(4px);
+      gap: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s;
+    }
+    .canvas-overlay.visible { opacity: 1; pointer-events: all; }
+
+    .overlay-title {
+      font-size: clamp(1.8rem, 5vw, 2.5rem);
+      font-weight: 900;
+      color: var(--accent);
+      text-shadow: var(--glow);
+    }
+    .overlay-sub {
+      color: var(--muted);
+      font-size: .95rem;
+    }
+    .overlay-score {
+      font-size: 1.1rem;
+      color: var(--text);
+    }
+    .overlay-score span { color: var(--accent); font-weight: 700; font-family: var(--mono); }
+
+    .overlay-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+
+    /* Controls hint */
+    .controls-hint {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+      font-size: .78rem;
+      color: var(--muted);
+    }
+    .key {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-family: var(--mono);
+      color: var(--text);
+    }
+
+    /* Touch controls */
+    .touch-controls {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .touch-row { display: flex; gap: 6px; }
+    .touch-btn {
+      width: 56px;
+      height: 56px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 1.4rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: background .1s;
+      touch-action: manipulation;
+    }
+    .touch-btn:active { background: var(--border); }
+
+    @media (max-width: 600px) {
+      .touch-controls { display: flex; }
+      .controls-hint { display: none; }
+    }
+    @media (pointer: coarse) {
+      .touch-controls { display: flex; }
+      .controls-hint { display: none; }
+    }
+
+    /* ── Leaderboard screen ───────────────────────────────────── */
+    #screen-leaderboard {
+      padding: 24px 16px;
+      gap: 24px;
+    }
+
+    .page-header {
+      text-align: center;
+      width: 100%;
+    }
+    .page-title {
+      font-size: clamp(1.6rem, 5vw, 2.2rem);
+      font-weight: 900;
+      color: var(--text);
+    }
+    .page-title span { color: var(--accent); }
+
+    .lb-wrap {
+      width: 100%;
+      max-width: 640px;
+    }
+
+    .lb-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .lb-table th {
+      background: var(--surface);
+      padding: 14px 16px;
+      text-align: left;
+      font-size: .75rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .lb-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: .95rem;
+    }
+    .lb-table tr:last-child td { border-bottom: none; }
+    .lb-table tr:hover td { background: rgba(255,255,255,.03); }
+
+    .rank-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      font-weight: 800;
+      font-size: .85rem;
+    }
+    .rank-1 { background: rgba(255,215,64,.15); color: var(--gold); }
+    .rank-2 { background: rgba(176,190,197,.15); color: var(--silver); }
+    .rank-3 { background: rgba(255,138,101,.15); color: var(--bronze); }
+    .rank-n { background: var(--surface); color: var(--muted); }
+
+    .lb-score { font-family: var(--mono); font-weight: 700; color: var(--accent); }
+    .lb-date  { color: var(--muted); font-size: .82rem; }
+
+    .lb-loading, .lb-empty {
+      text-align: center;
+      padding: 48px 16px;
+      color: var(--muted);
+    }
+
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast ────────────────────────────────────────────────── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-size: .9rem;
+      color: var(--text);
+      box-shadow: 0 8px 32px rgba(0,0,0,.5);
+      z-index: 999;
+      transition: transform .3s ease;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { border-color: var(--accent); }
+    .toast.error   { border-color: var(--danger); }
+
+    /* ── Nav bar ──────────────────────────────────────────────── */
+    .nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* ── Responsive canvas sizing ────────────────────────────── */
+    @media (max-width: 540px) {
+      .card { padding: 24px 20px; }
+    }
+  </style>
 </head>
 <body>
-    <div class="container" id="start-screen">
-        <h1>🐍 Snake Adventure</h1>
-        <input type="text" id="username" placeholder="Enter username" maxlength="20">
-        <br>
-        <button onclick="startGame()">Play Snake!</button>
-        <br><br>
-        <button onclick="showLeaderboard()">View Leaderboard</button>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SCREEN 1 — USERNAME ENTRY
+═══════════════════════════════════════════════════════════════ -->
+<div id="screen-username" class="screen active">
+  <div class="logo">🐍 Snake<span>.</span></div>
+  <div class="tagline">Global Leaderboard Edition</div>
+
+  <div class="card">
+    <h2>Enter to play</h2>
+    <label for="usernameInput">Your username</label>
+    <input
+      type="text"
+      id="usernameInput"
+      placeholder="e.g. SnakeKing99"
+      maxlength="24"
+      autocomplete="off"
+      autocorrect="off"
+      spellcheck="false"
+    />
+    <div class="error-msg" id="usernameError"></div>
+    <button class="btn btn-primary" id="startBtn">Start Game →</button>
+
+    <div style="margin-top:20px; text-align:center;">
+      <button class="btn btn-ghost" onclick="showLeaderboard()" style="width:100%">
+        🏆 View Leaderboard
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SCREEN 2 — GAME
+═══════════════════════════════════════════════════════════════ -->
+<div id="screen-game" class="screen">
+
+  <div class="game-header">
+    <div class="player-tag">
+      🎮 <strong id="hdrUsername"></strong>
+    </div>
+    <div class="score-display">
+      <div class="score-label">Score</div>
+      <div class="score-value" id="scoreDisplay">0</div>
+    </div>
+    <button class="btn btn-ghost" onclick="quitGame()" style="padding:8px 14px;font-size:.85rem;">
+      ✕ Quit
+    </button>
+  </div>
+
+  <!-- Canvas -->
+  <div class="canvas-wrap" id="canvasWrap">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Overlay states -->
+    <div class="canvas-overlay" id="overlayCountdown">
+      <div class="overlay-title" id="countdownNum" style="font-size:5rem;">3</div>
+      <div class="overlay-sub">Get ready!</div>
     </div>
 
-    <div class="container hidden" id="game-screen">
-        <h2>Snake - <span id="player-name"></span></h2>
-        <div>Score: <span id="score">0</span></div>
-        <canvas id="gameCanvas" width="400" height="400"></canvas>
-        <p>Use Arrow Keys or WASD</p>
-        <button onclick="endGame()">End Game</button>
+    <div class="canvas-overlay" id="overlayGameOver">
+      <div class="overlay-title">Game Over</div>
+      <div class="overlay-score">Score: <span id="finalScore">0</span></div>
+      <div class="overlay-sub" id="submitStatus" style="min-height:20px;"></div>
+      <div class="overlay-btns">
+        <button class="btn btn-primary" onclick="startCountdown()">▶ Play Again</button>
+        <button class="btn btn-ghost" onclick="showLeaderboard()">🏆 Leaderboard</button>
+        <button class="btn btn-ghost" onclick="showUsername()">⬅ Change User</button>
+      </div>
     </div>
 
-    <div class="container hidden" id="leaderboard-screen">
-        <h1>🏆 Global Leaderboard</h1>
-        <table id="leaderboard-table">
-            <thead><tr><th>Rank</th><th>Player</th><th>Score</th><th>Date</th></tr></thead>
-            <tbody></tbody>
-        </table>
-        <button onclick="backToMenu()">Play Again</button>
+    <div class="canvas-overlay" id="overlayPause">
+      <div class="overlay-title">Paused</div>
+      <div class="overlay-btns">
+        <button class="btn btn-primary" onclick="resumeGame()">▶ Resume</button>
+        <button class="btn btn-ghost" onclick="quitGame()">✕ Quit</button>
+      </div>
     </div>
+  </div>
 
-    <script>
-        const SUPABASE_URL = 'https://oymwllxasxifyttbkpqt.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_335qzV9UbTZ8NwOgAKezkw_RyhqRlqV';
+  <!-- Keyboard hint -->
+  <div class="controls-hint">
+    <span><span class="key">↑↓←→</span> or <span class="key">WASD</span> — Move</span>
+    <span><span class="key">P</span> — Pause</span>
+    <span><span class="key">Space</span> — Pause</span>
+  </div>
 
-        let currentUsername = '';
+  <!-- Touch d-pad -->
+  <div class="touch-controls">
+    <div class="touch-row">
+      <div class="touch-btn" id="btnUp" ontouchstart="touchDir('UP')">▲</div>
+    </div>
+    <div class="touch-row">
+      <div class="touch-btn" id="btnLeft"  ontouchstart="touchDir('LEFT')">◀</div>
+      <div class="touch-btn" id="btnDown"  ontouchstart="touchDir('DOWN')">▼</div>
+      <div class="touch-btn" id="btnRight" ontouchstart="touchDir('RIGHT')">▶</div>
+    </div>
+  </div>
 
-        // === RELIABLE VISITOR ANALYTICS ===
-        async function trackVisitor() {
-            const visitorData = {
-                username: currentUsername || localStorage.getItem('snakeUsername') || 'anonymous',
-                country: Intl.DateTimeFormat().resolvedOptions().timeZone.split('/')[0] || 'Unknown',
-                region: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Unknown',
-                device_type: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
-                browser: navigator.userAgent.includes('Chrome') ? 'Chrome' :
-                         navigator.userAgent.includes('Firefox') ? 'Firefox' :
-                         navigator.userAgent.includes('Safari') ? 'Safari' : 'Other',
-                os: navigator.platform,
-                language: navigator.language,
-                screen_resolution: `${window.screen.width}x${window.screen.height}`,
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                referrer: document.referrer || 'direct',
-                ip_address: 'unknown'
-            };
+</div>
 
-            // Try IP lookup with timeout (non-blocking)
-            try {
-                const controller = new AbortController();
-                const timeout = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+<!-- ══════════════════════════════════════════════════════════════
+     SCREEN 3 — LEADERBOARD
+═══════════════════════════════════════════════════════════════ -->
+<div id="screen-leaderboard" class="screen">
+  <div class="page-header">
+    <div class="page-title">🏆 <span>Global</span> Leaderboard</div>
+  </div>
 
-                const ipRes = await fetch('https://ip-api.com/json/?fields=status,message,country,regionName,query', {
-                    signal: controller.signal
-                });
-                clearTimeout(timeout);
+  <div class="nav">
+    <button class="btn btn-ghost" onclick="showGame()">▶ Play</button>
+    <button class="btn btn-ghost" onclick="loadLeaderboard()">⟳ Refresh</button>
+    <button class="btn btn-ghost" onclick="showUsername()">⬅ Home</button>
+  </div>
 
-                if (ipRes.ok) {
-                    const ipData = await ipRes.json();
-                    if (ipData.status === "success") {
-                        visitorData.country = ipData.country || visitorData.country;
-                        visitorData.region = ipData.regionName || visitorData.region;
-                        visitorData.ip_address = ipData.query || 'unknown';
-                    }
-                }
-            } catch(e) {
-                console.log("IP lookup skipped (timeout or error)");
-            }
+  <div class="lb-wrap">
+    <div id="lbContent">
+      <div class="lb-loading">
+        <div class="spinner"></div>
+        Loading scores…
+      </div>
+    </div>
+  </div>
+</div>
 
-            // Insert data
-            try {
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/visitor_analytics`, {
-                    method: 'POST',
-                    headers: {
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(visitorData)
-                });
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
 
-                if (response.ok) {
-                    console.log("✅ Visitor data saved");
-                } else {
-                    console.error("❌ Failed to save:", response.status);
-                }
-            } catch(e) {
-                console.error("Analytics error:", e);
-            }
-        }
+<!-- ══════════════════════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════════════════════ -->
+<script>
+  /* ─────────────────────────────────────────────────────────────
+     CONFIG — change BACKEND_URL to your Render/Railway URL
+  ───────────────────────────────────────────────────────────── */
+  const BACKEND_URL = 'https://YOUR-BACKEND.onrender.com'; // ← CHANGE THIS
 
-        // ==================== Rest of the code (same) ====================
-        function startGame() {
-            const input = document.getElementById('username').value.trim();
-            if (!input) return alert("Please enter a username!");
-            currentUsername = input;
-            localStorage.setItem('snakeUsername', input);
+  /* ─────────────────────────────────────────────────────────────
+     GLOBAL STATE
+  ───────────────────────────────────────────────────────────── */
+  let username      = '';
+  let gameLoop      = null;
+  let score         = 0;
+  let snake         = [];
+  let direction     = 'RIGHT';
+  let nextDirection = 'RIGHT';
+  let food          = {};
+  let paused        = false;
+  let gameRunning   = false;
+  let analyticsLogged = false;
 
-            document.getElementById('start-screen').classList.add('hidden');
-            document.getElementById('game-screen').classList.remove('hidden');
-            document.getElementById('player-name').textContent = currentUsername;
+  /* ─────────────────────────────────────────────────────────────
+     CANVAS SETUP — responsive sizing
+  ───────────────────────────────────────────────────────────── */
+  const canvas = document.getElementById('gameCanvas');
+  const ctx    = canvas.getContext('2d');
 
-            initSnakeGame();
-            trackVisitor();
-        }
+  const CELL = 20; // px per grid cell
 
-        let snake, food, dx, dy, score, gameInterval, gameOverFlag;
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const grid = 20;
-        const tileCount = canvas.width / grid;
+  function calcCanvasSize() {
+    const maxW = Math.min(window.innerWidth - 32, 520);
+    const cols = Math.floor(maxW / CELL);
+    const rows = Math.floor((window.innerHeight * 0.55) / CELL);
+    return {
+      cols: Math.max(cols, 15),
+      rows: Math.max(rows, 12),
+      w: Math.max(cols, 15) * CELL,
+      h: Math.max(rows, 12) * CELL
+    };
+  }
 
-        function initSnakeGame() {
-            snake = [{x:10, y:10}];
-            food = {x:15, y:15};
-            dx = 1; dy = 0;
-            score = 0;
-            gameOverFlag = false;
-            document.getElementById('score').textContent = 0;
-            randomFood();
-            if (gameInterval) clearInterval(gameInterval);
-            gameInterval = setInterval(drawGame, 100);
-        }
+  let COLS, ROWS;
 
-        function randomFood() {
-            food = { x: Math.floor(Math.random()*tileCount), y: Math.floor(Math.random()*tileCount) };
-        }
+  function resizeCanvas() {
+    const s = calcCanvasSize();
+    COLS = s.cols; ROWS = s.rows;
+    canvas.width  = s.w;
+    canvas.height = s.h;
+    if (!gameRunning) drawIdleGrid();
+  }
 
-        function drawGame() {
-            if (gameOverFlag) return;
-            const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
 
-            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount || snake.some(s => s.x === head.x && s.y === head.y)) {
-                return endGame();
-            }
+  /* ─────────────────────────────────────────────────────────────
+     IDLE GRID (shown before game starts)
+  ───────────────────────────────────────────────────────────── */
+  function drawIdleGrid() {
+    ctx.fillStyle = '#151828';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = 'rgba(0,230,118,.06)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= COLS; x++) {
+      ctx.beginPath();
+      ctx.moveTo(x * CELL, 0);
+      ctx.lineTo(x * CELL, canvas.height);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= ROWS; y++) {
+      ctx.beginPath();
+      ctx.moveTo(0, y * CELL);
+      ctx.lineTo(canvas.width, y * CELL);
+      ctx.stroke();
+    }
+  }
 
-            snake.unshift(head);
+  /* ─────────────────────────────────────────────────────────────
+     SCREEN NAVIGATION
+  ───────────────────────────────────────────────────────────── */
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
 
-            if (head.x === food.x && head.y === food.y) {
-                score += 10;
-                document.getElementById('score').textContent = score;
-                randomFood();
-            } else {
-                snake.pop();
-            }
+  function showUsername() {
+    stopGame();
+    showScreen('screen-username');
+    document.getElementById('usernameInput').focus();
+  }
 
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+  function showGame() {
+    showScreen('screen-game');
+    resizeCanvas();
+    startCountdown();
+  }
 
-            ctx.fillStyle = '#0f0';
-            snake.forEach(s => ctx.fillRect(s.x*grid, s.y*grid, grid-2, grid-2));
+  function showLeaderboard() {
+    showScreen('screen-leaderboard');
+    loadLeaderboard();
+  }
 
-            ctx.fillStyle = '#f00';
-            ctx.fillRect(food.x*grid, food.y*grid, grid-2, grid-2);
-        }
+  /* ─────────────────────────────────────────────────────────────
+     USERNAME VALIDATION
+  ───────────────────────────────────────────────────────────── */
+  document.getElementById('startBtn').addEventListener('click', handleStart);
+  document.getElementById('usernameInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleStart();
+  });
 
-        function endGame() {
-            gameOverFlag = true;
-            clearInterval(gameInterval);
-            submitScore(currentUsername, score);
-            alert(`Game Over! Final Score: ${score}`);
-            setTimeout(showLeaderboard, 800);
-        }
+  function handleStart() {
+    const val = document.getElementById('usernameInput').value.trim();
+    const err = document.getElementById('usernameError');
 
-        document.addEventListener('keydown', e => {
-            if (gameOverFlag) return;
-            switch(e.key) {
-                case 'ArrowUp': case 'w': case 'W': if(dy !== 1){dx=0; dy=-1;} break;
-                case 'ArrowDown': case 's': case 'S': if(dy !== -1){dx=0; dy=1;} break;
-                case 'ArrowLeft': case 'a': case 'A': if(dx !== 1){dx=-1; dy=0;} break;
-                case 'ArrowRight': case 'd': case 'D': if(dx !== -1){dx=1; dy=0;} break;
-            }
-        });
+    if (!val) { err.textContent = 'Please enter a username.'; return; }
+    if (val.length < 2) { err.textContent = 'Min 2 characters.'; return; }
+    if (!/^[a-zA-Z0-9_\- ]+$/.test(val)) {
+      err.textContent = 'Letters, numbers, spaces, _ and - only.';
+      return;
+    }
 
-        async function submitScore(username, score) {
-            try {
-                await fetch(`${SUPABASE_URL}/rest/v1/scores`, {
-                    method: 'POST',
-                    headers: {
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ username, score })
-                });
-            } catch(e) {}
-        }
+    err.textContent = '';
+    username = val;
+    document.getElementById('hdrUsername').textContent = username;
+    analyticsLogged = false; // reset so analytics fires once per session
+    logAnalytics();           // fire analytics (non-blocking)
+    showGame();
+  }
 
-        async function showLeaderboard() {
-            document.getElementById('start-screen').classList.add('hidden');
-            document.getElementById('game-screen').classList.add('hidden');
-            document.getElementById('leaderboard-screen').classList.remove('hidden');
+  /* ─────────────────────────────────────────────────────────────
+     COUNTDOWN (3-2-1-GO)
+  ───────────────────────────────────────────────────────────── */
+  function startCountdown() {
+    stopGame();
+    hideAllOverlays();
+    showOverlay('overlayCountdown');
+    resizeCanvas();
+    drawIdleGrid();
 
-            try {
-                const res = await fetch(`${SUPABASE_URL}/rest/v1/scores?select=*&order=score.desc&limit=50`, {
-                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-                });
-                const data = await res.json();
-                const tbody = document.querySelector('#leaderboard-table tbody');
-                tbody.innerHTML = '';
-                data.forEach((row, i) => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `<td>${i+1}</td><td>${row.username}</td><td>${row.score}</td><td>${new Date(row.timestamp).toLocaleDateString()}</td>`;
-                    tbody.appendChild(tr);
-                });
-            } catch(e) {}
-        }
+    let n = 3;
+    document.getElementById('countdownNum').textContent = n;
 
-        function backToMenu() {
-            document.getElementById('leaderboard-screen').classList.add('hidden');
-            document.getElementById('start-screen').classList.remove('hidden');
-        }
+    const iv = setInterval(() => {
+      n--;
+      if (n === 0) {
+        document.getElementById('countdownNum').textContent = 'GO!';
+        setTimeout(() => {
+          clearInterval(iv);
+          hideOverlay('overlayCountdown');
+          initGame();
+        }, 600);
+      } else {
+        document.getElementById('countdownNum').textContent = n;
+      }
+    }, 700);
+  }
 
-        window.onload = () => {
-            console.log("Snake Game loaded");
-            trackVisitor();
-        };
-    </script>
+  /* ─────────────────────────────────────────────────────────────
+     GAME INIT
+  ───────────────────────────────────────────────────────────── */
+  function initGame() {
+    score         = 0;
+    direction     = 'RIGHT';
+    nextDirection = 'RIGHT';
+    paused        = false;
+    gameRunning   = true;
+    updateScoreUI();
+
+    // Start snake in middle
+    const midX = Math.floor(COLS / 2);
+    const midY = Math.floor(ROWS / 2);
+    snake = [
+      { x: midX,     y: midY },
+      { x: midX - 1, y: midY },
+      { x: midX - 2, y: midY }
+    ];
+
+    spawnFood();
+    clearInterval(gameLoop);
+    gameLoop = setInterval(tick, 130);
+  }
+
+  function stopGame() {
+    gameRunning = false;
+    paused      = false;
+    clearInterval(gameLoop);
+    gameLoop = null;
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     FOOD SPAWNING
+  ───────────────────────────────────────────────────────────── */
+  function spawnFood() {
+    let pos;
+    do {
+      pos = {
+        x: Math.floor(Math.random() * COLS),
+        y: Math.floor(Math.random() * ROWS)
+      };
+    } while (snake.some(s => s.x === pos.x && s.y === pos.y));
+    food = pos;
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     GAME TICK
+  ───────────────────────────────────────────────────────────── */
+  function tick() {
+    if (!gameRunning || paused) return;
+
+    direction = nextDirection;
+
+    const head = { ...snake[0] };
+    if (direction === 'UP')    head.y--;
+    if (direction === 'DOWN')  head.y++;
+    if (direction === 'LEFT')  head.x--;
+    if (direction === 'RIGHT') head.x++;
+
+    // Wall collision
+    if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) {
+      triggerGameOver(); return;
+    }
+    // Self collision
+    if (snake.some(s => s.x === head.x && s.y === head.y)) {
+      triggerGameOver(); return;
+    }
+
+    snake.unshift(head);
+
+    if (head.x === food.x && head.y === food.y) {
+      score++;
+      updateScoreUI();
+      spawnFood();
+      // Speed up slightly every 5 points
+      if (score % 5 === 0) {
+        clearInterval(gameLoop);
+        const speed = Math.max(60, 130 - score * 3);
+        gameLoop = setInterval(tick, speed);
+      }
+    } else {
+      snake.pop();
+    }
+
+    draw();
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     DRAW
+  ───────────────────────────────────────────────────────────── */
+  function draw() {
+    // Background
+    ctx.fillStyle = '#151828';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Grid lines (subtle)
+    ctx.strokeStyle = 'rgba(0,230,118,.04)';
+    ctx.lineWidth = .5;
+    for (let x = 0; x <= COLS; x++) {
+      ctx.beginPath(); ctx.moveTo(x*CELL,0); ctx.lineTo(x*CELL,canvas.height); ctx.stroke();
+    }
+    for (let y = 0; y <= ROWS; y++) {
+      ctx.beginPath(); ctx.moveTo(0,y*CELL); ctx.lineTo(canvas.width,y*CELL); ctx.stroke();
+    }
+
+    // Food — glowing circle
+    const fx = food.x * CELL + CELL/2;
+    const fy = food.y * CELL + CELL/2;
+    ctx.save();
+    ctx.shadowBlur  = 16;
+    ctx.shadowColor = '#ff5252';
+    ctx.fillStyle   = '#ff5252';
+    ctx.beginPath();
+    ctx.arc(fx, fy, CELL/2 - 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Snake body
+    snake.forEach((seg, i) => {
+      const alpha = 1 - (i / snake.length) * 0.45;
+      ctx.save();
+      if (i === 0) {
+        ctx.shadowBlur  = 12;
+        ctx.shadowColor = '#00e676';
+      }
+      ctx.fillStyle = i === 0
+        ? '#00e676'
+        : `rgba(0,188,100,${alpha})`;
+      const pad = i === 0 ? 1 : 2;
+      roundRect(ctx, seg.x*CELL+pad, seg.y*CELL+pad, CELL-pad*2, CELL-pad*2, 4);
+      ctx.fill();
+      ctx.restore();
+    });
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.lineTo(x+w-r, y);
+    ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+    ctx.lineTo(x+w, y+h-r);
+    ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+    ctx.lineTo(x+r, y+h);
+    ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+    ctx.lineTo(x, y+r);
+    ctx.quadraticCurveTo(x, y, x+r, y);
+    ctx.closePath();
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     GAME OVER
+  ───────────────────────────────────────────────────────────── */
+  function triggerGameOver() {
+    stopGame();
+    document.getElementById('finalScore').textContent = score;
+    document.getElementById('submitStatus').textContent = '';
+    showOverlay('overlayGameOver');
+    submitScore(score);
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     PAUSE / RESUME
+  ───────────────────────────────────────────────────────────── */
+  function pauseGame() {
+    if (!gameRunning) return;
+    paused = true;
+    showOverlay('overlayPause');
+  }
+
+  function resumeGame() {
+    if (!gameRunning) return;
+    paused = false;
+    hideOverlay('overlayPause');
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     QUIT
+  ───────────────────────────────────────────────────────────── */
+  function quitGame() {
+    stopGame();
+    showUsername();
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     OVERLAY HELPERS
+  ───────────────────────────────────────────────────────────── */
+  function showOverlay(id) { document.getElementById(id).classList.add('visible'); }
+  function hideOverlay(id) { document.getElementById(id).classList.remove('visible'); }
+  function hideAllOverlays() {
+    ['overlayCountdown','overlayGameOver','overlayPause'].forEach(hideOverlay);
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     SCORE UI
+  ───────────────────────────────────────────────────────────── */
+  function updateScoreUI() {
+    document.getElementById('scoreDisplay').textContent = score;
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     KEYBOARD CONTROLS
+  ───────────────────────────────────────────────────────────── */
+  const OPPOSITE = { UP:'DOWN', DOWN:'UP', LEFT:'RIGHT', RIGHT:'LEFT' };
+
+  document.addEventListener('keydown', e => {
+    const map = {
+      ArrowUp:'UP', ArrowDown:'DOWN', ArrowLeft:'LEFT', ArrowRight:'RIGHT',
+      w:'UP', s:'DOWN', a:'LEFT', d:'RIGHT',
+      W:'UP', S:'DOWN', A:'LEFT', D:'RIGHT'
+    };
+
+    if (map[e.key] && gameRunning) {
+      e.preventDefault();
+      const d = map[e.key];
+      if (d !== OPPOSITE[direction]) nextDirection = d;
+      return;
+    }
+
+    if ((e.key === 'p' || e.key === 'P' || e.key === ' ') && gameRunning) {
+      e.preventDefault();
+      paused ? resumeGame() : pauseGame();
+    }
+  });
+
+  /* ─────────────────────────────────────────────────────────────
+     TOUCH / D-PAD CONTROLS
+  ───────────────────────────────────────────────────────────── */
+  function touchDir(d) {
+    if (!gameRunning || paused) return;
+    if (d !== OPPOSITE[direction]) nextDirection = d;
+  }
+
+  // Swipe detection on canvas
+  let touchStartX = 0, touchStartY = 0;
+  canvas.addEventListener('touchstart', e => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  canvas.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+    let d;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      d = dx > 0 ? 'RIGHT' : 'LEFT';
+    } else {
+      d = dy > 0 ? 'DOWN' : 'UP';
+    }
+    touchDir(d);
+  }, { passive: true });
+
+  /* ─────────────────────────────────────────────────────────────
+     API — SUBMIT SCORE
+  ───────────────────────────────────────────────────────────── */
+  async function submitScore(finalScore) {
+    const statusEl = document.getElementById('submitStatus');
+    statusEl.textContent = 'Submitting score…';
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/scores`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, score: finalScore })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+
+      statusEl.textContent = '✅ Score submitted!';
+      showToast('Score saved to leaderboard!', 'success');
+    } catch (e) {
+      console.error('Score submit failed:', e);
+      statusEl.textContent = '⚠ Could not submit score.';
+    }
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     API — LOAD LEADERBOARD
+  ───────────────────────────────────────────────────────────── */
+  async function loadLeaderboard() {
+    document.getElementById('lbContent').innerHTML = `
+      <div class="lb-loading"><div class="spinner"></div>Loading scores…</div>`;
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/leaderboard`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderLeaderboard(data.leaderboard || []);
+    } catch (e) {
+      console.error('Leaderboard fetch failed:', e);
+      document.getElementById('lbContent').innerHTML = `
+        <div class="lb-empty">⚠ Could not load scores.<br><small>${e.message}</small></div>`;
+    }
+  }
+
+  function renderLeaderboard(rows) {
+    if (!rows.length) {
+      document.getElementById('lbContent').innerHTML =
+        '<div class="lb-empty">No scores yet. Be the first! 🐍</div>';
+      return;
+    }
+
+    const rankClass = i =>
+      i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-n';
+
+    const html = `
+      <table class="lb-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Player</th>
+            <th>Score</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((r, i) => `
+            <tr>
+              <td><span class="rank-badge ${rankClass(i)}">${i + 1}</span></td>
+              <td>${escHtml(r.username)}</td>
+              <td class="lb-score">${r.score}</td>
+              <td class="lb-date">${formatDate(r.timestamp)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`;
+
+    document.getElementById('lbContent').innerHTML = html;
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     API — LOG ANALYTICS
+     Country/region/IP resolved server-side from request IP.
+     We only send what the browser knows.
+  ───────────────────────────────────────────────────────────── */
+  async function logAnalytics() {
+    if (analyticsLogged) return;
+    analyticsLogged = true;
+
+    // Detect device type
+    const ua = navigator.userAgent;
+    let deviceType = 'desktop';
+    if (/Mobi|Android|iPhone|iPod/i.test(ua)) deviceType = 'mobile';
+    else if (/iPad|Tablet/i.test(ua)) deviceType = 'tablet';
+
+    // Detect browser
+    let browser = 'Unknown';
+    if (/Edg/i.test(ua))     browser = 'Edge';
+    else if (/OPR/i.test(ua)) browser = 'Opera';
+    else if (/Chrome/i.test(ua)) browser = 'Chrome';
+    else if (/Firefox/i.test(ua)) browser = 'Firefox';
+    else if (/Safari/i.test(ua))  browser = 'Safari';
+
+    // Detect OS
+    let os = 'Unknown';
+    if (/Windows NT/i.test(ua))       os = 'Windows';
+    else if (/Macintosh|Mac OS/i.test(ua)) os = 'macOS';
+    else if (/Android/i.test(ua))     os = 'Android';
+    else if (/iPhone|iPad|iPod/i.test(ua)) os = 'iOS';
+    else if (/Linux/i.test(ua))       os = 'Linux';
+
+    const payload = {
+      username,
+      device_type: deviceType,
+      browser,
+      os,
+      language: navigator.language || 'Unknown',
+      screen_resolution: `${screen.width}x${screen.height}`,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Unknown',
+      referrer: document.referrer || null
+      // country, region, ip_address → resolved server-side
+    };
+
+    try {
+      await fetch(`${BACKEND_URL}/api/analytics`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch (e) {
+      // Analytics failure is silent — don't break game
+      console.warn('Analytics failed:', e.message);
+    }
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     TOAST
+  ───────────────────────────────────────────────────────────── */
+  let toastTimer;
+  function showToast(msg, type = '') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast ${type} show`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     UTILS
+  ───────────────────────────────────────────────────────────── */
+  function escHtml(str) {
+    return str.replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+
+  function formatDate(ts) {
+    if (!ts) return '—';
+    try {
+      return new Date(ts).toLocaleDateString(undefined, {
+        month: 'short', day: 'numeric', year: 'numeric'
+      });
+    } catch { return ts; }
+  }
+
+  /* Init */
+  drawIdleGrid();
+</script>
 </body>
 </html>
