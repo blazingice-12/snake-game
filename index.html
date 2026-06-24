@@ -83,31 +83,43 @@
 
         let currentUsername = '';
 
-        // === VISITOR ANALYTICS WITH IP TRACKING ===
+        // === IMPROVED VISITOR ANALYTICS ===
         async function trackVisitor() {
+            let visitorData = {
+                username: currentUsername || localStorage.getItem('snakeUsername') || 'anonymous',
+                country: 'Unknown',
+                region: 'Unknown',
+                device_type: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
+                browser: navigator.userAgent.includes('Chrome') ? 'Chrome' :
+                         navigator.userAgent.includes('Firefox') ? 'Firefox' :
+                         navigator.userAgent.includes('Safari') ? 'Safari' : 'Other',
+                os: navigator.platform,
+                language: navigator.language,
+                screen_resolution: `${window.screen.width}x${window.screen.height}`,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                referrer: document.referrer || 'direct',
+                ip_address: 'unknown'
+            };
+
             try {
-                // Get real visitor IP
-                const ipRes = await fetch('https://api.ipapi.is/v1/?key=free');
-                const ipData = await ipRes.json();
-                const ip = ipData.ip || 'unknown';
+                // Try to get IP (optional)
+                const ipRes = await fetch('https://api.ipapi.is/v1/?key=free', { 
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                if (ipRes.ok) {
+                    const ipData = await ipRes.json();
+                    visitorData.country = ipData.country || 'Unknown';
+                    visitorData.region = ipData.region || ipData.city || 'Unknown';
+                    visitorData.ip_address = ipData.ip || 'unknown';
+                }
+            } catch(e) {
+                console.log("IP lookup failed (using fallback)", e);
+            }
 
-                const visitorData = {
-                    username: currentUsername || localStorage.getItem('snakeUsername') || 'anonymous',
-                    country: ipData.country || 'Unknown',
-                    region: ipData.region || ipData.city || 'Unknown',
-                    device_type: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
-                    browser: navigator.userAgent.includes('Chrome') ? 'Chrome' :
-                             navigator.userAgent.includes('Firefox') ? 'Firefox' :
-                             navigator.userAgent.includes('Safari') ? 'Safari' : 'Other',
-                    os: navigator.platform,
-                    language: navigator.language,
-                    screen_resolution: `${window.screen.width}x${window.screen.height}`,
-                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    referrer: document.referrer || 'direct',
-                    ip_address: ip
-                };
-
-                await fetch(`${SUPABASE_URL}/rest/v1/visitor_analytics`, {
+            // Always try to insert even if IP fails
+            try {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/visitor_analytics`, {
                     method: 'POST',
                     headers: {
                         'apikey': SUPABASE_ANON_KEY,
@@ -117,9 +129,13 @@
                     body: JSON.stringify(visitorData)
                 });
 
-                console.log("Visitor tracked with IP:", ip);
+                if (response.ok) {
+                    console.log("✅ Visitor analytics saved successfully");
+                } else {
+                    console.error("❌ Supabase insert failed:", response.status);
+                }
             } catch(e) {
-                console.log("Visitor analytics failed (optional)");
+                console.error("❌ Analytics insert error:", e);
             }
         }
 
@@ -135,10 +151,10 @@
             document.getElementById('player-name').textContent = currentUsername;
 
             initSnakeGame();
-            trackVisitor();        // Track when game starts
+            trackVisitor();
         }
 
-        // Snake Game Logic
+        // Snake Game Logic (same as before)
         let snake, food, dx, dy, score, gameInterval, gameOverFlag;
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -207,7 +223,6 @@
             }
         });
 
-        // Submit Score
         async function submitScore(username, score) {
             try {
                 await fetch(`${SUPABASE_URL}/rest/v1/scores`, {
@@ -222,7 +237,6 @@
             } catch(e) {}
         }
 
-        // Leaderboard
         async function showLeaderboard() {
             document.getElementById('start-screen').classList.add('hidden');
             document.getElementById('game-screen').classList.add('hidden');
@@ -240,9 +254,7 @@
                     tr.innerHTML = `<td>${i+1}</td><td>${row.username}</td><td>${row.score}</td><td>${new Date(row.timestamp).toLocaleDateString()}</td>`;
                     tbody.appendChild(tr);
                 });
-            } catch(e) {
-                alert("Could not load leaderboard.");
-            }
+            } catch(e) {}
         }
 
         function backToMenu() {
@@ -250,9 +262,8 @@
             document.getElementById('start-screen').classList.remove('hidden');
         }
 
-        // Load analytics when page opens
         window.onload = () => {
-            console.log("Snake Game + IP Analytics loaded!");
+            console.log("Snake Game loaded - Analytics active");
             trackVisitor();
         };
     </script>
