@@ -83,12 +83,12 @@
 
         let currentUsername = '';
 
-        // === IMPROVED VISITOR ANALYTICS ===
+        // === FAST VISITOR ANALYTICS (No blocking IP call) ===
         async function trackVisitor() {
-            let visitorData = {
+            const visitorData = {
                 username: currentUsername || localStorage.getItem('snakeUsername') || 'anonymous',
-                country: 'Unknown',
-                region: 'Unknown',
+                country: Intl.DateTimeFormat().resolvedOptions().timeZone.split('/')[0] || 'Unknown',
+                region: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Unknown',
                 device_type: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
                 browser: navigator.userAgent.includes('Chrome') ? 'Chrome' :
                          navigator.userAgent.includes('Firefox') ? 'Firefox' :
@@ -101,23 +101,7 @@
                 ip_address: 'unknown'
             };
 
-            try {
-                // Try to get IP (optional)
-                const ipRes = await fetch('https://api.ipapi.is/v1/?key=free', { 
-                    method: 'GET',
-                    mode: 'cors'
-                });
-                if (ipRes.ok) {
-                    const ipData = await ipRes.json();
-                    visitorData.country = ipData.country || 'Unknown';
-                    visitorData.region = ipData.region || ipData.city || 'Unknown';
-                    visitorData.ip_address = ipData.ip || 'unknown';
-                }
-            } catch(e) {
-                console.log("IP lookup failed (using fallback)", e);
-            }
-
-            // Always try to insert even if IP fails
+            // Send analytics without waiting for slow IP lookup
             try {
                 const response = await fetch(`${SUPABASE_URL}/rest/v1/visitor_analytics`, {
                     method: 'POST',
@@ -130,12 +114,12 @@
                 });
 
                 if (response.ok) {
-                    console.log("✅ Visitor analytics saved successfully");
+                    console.log("✅ Visitor analytics saved");
                 } else {
-                    console.error("❌ Supabase insert failed:", response.status);
+                    console.error("Insert failed:", response.status);
                 }
             } catch(e) {
-                console.error("❌ Analytics insert error:", e);
+                console.error("Analytics error:", e);
             }
         }
 
@@ -154,7 +138,7 @@
             trackVisitor();
         }
 
-        // Snake Game Logic (same as before)
+        // ==================== Snake Game Logic ====================
         let snake, food, dx, dy, score, gameInterval, gameOverFlag;
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -216,10 +200,10 @@
         document.addEventListener('keydown', e => {
             if (gameOverFlag) return;
             switch(e.key) {
-                case 'ArrowUp': case 'w': case 'W': if(dy!==1){dx=0;dy=-1;} break;
-                case 'ArrowDown': case 's': case 'S': if(dy!==-1){dx=0;dy=1;} break;
-                case 'ArrowLeft': case 'a': case 'A': if(dx!==1){dx=-1;dy=0;} break;
-                case 'ArrowRight': case 'd': case 'D': if(dx!==-1){dx=1;dy=0;} break;
+                case 'ArrowUp': case 'w': case 'W': if(dy !== 1){dx=0; dy=-1;} break;
+                case 'ArrowDown': case 's': case 'S': if(dy !== -1){dx=0; dy=1;} break;
+                case 'ArrowLeft': case 'a': case 'A': if(dx !== 1){dx=-1; dy=0;} break;
+                case 'ArrowRight': case 'd': case 'D': if(dx !== -1){dx=1; dy=0;} break;
             }
         });
 
@@ -262,8 +246,9 @@
             document.getElementById('start-screen').classList.remove('hidden');
         }
 
+        // Initialize
         window.onload = () => {
-            console.log("Snake Game loaded - Analytics active");
+            console.log("Snake Game + Fast Analytics loaded");
             trackVisitor();
         };
     </script>
