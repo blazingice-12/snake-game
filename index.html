@@ -83,12 +83,12 @@
 
         let currentUsername = '';
 
-        // === FAST VISITOR ANALYTICS WITH IP ===
+        // === RELIABLE VISITOR ANALYTICS ===
         async function trackVisitor() {
-            const baseData = {
+            const visitorData = {
                 username: currentUsername || localStorage.getItem('snakeUsername') || 'anonymous',
-                country: 'Unknown',
-                region: 'Unknown',
+                country: Intl.DateTimeFormat().resolvedOptions().timeZone.split('/')[0] || 'Unknown',
+                region: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Unknown',
                 device_type: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
                 browser: navigator.userAgent.includes('Chrome') ? 'Chrome' :
                          navigator.userAgent.includes('Firefox') ? 'Firefox' :
@@ -101,22 +101,29 @@
                 ip_address: 'unknown'
             };
 
+            // Try IP lookup with timeout (non-blocking)
             try {
-                // Get real IP + location (fast & reliable)
-                const ipRes = await fetch('https://ip-api.com/json/?fields=status,message,country,regionName,city,query');
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+
+                const ipRes = await fetch('https://ip-api.com/json/?fields=status,message,country,regionName,query', {
+                    signal: controller.signal
+                });
+                clearTimeout(timeout);
+
                 if (ipRes.ok) {
                     const ipData = await ipRes.json();
                     if (ipData.status === "success") {
-                        baseData.country = ipData.country || 'Unknown';
-                        baseData.region = ipData.regionName || ipData.city || 'Unknown';
-                        baseData.ip_address = ipData.query || 'unknown';
+                        visitorData.country = ipData.country || visitorData.country;
+                        visitorData.region = ipData.regionName || visitorData.region;
+                        visitorData.ip_address = ipData.query || 'unknown';
                     }
                 }
             } catch(e) {
-                console.log("IP lookup failed - using fallback");
+                console.log("IP lookup skipped (timeout or error)");
             }
 
-            // Always insert analytics
+            // Insert data
             try {
                 const response = await fetch(`${SUPABASE_URL}/rest/v1/visitor_analytics`, {
                     method: 'POST',
@@ -125,20 +132,20 @@
                         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(baseData)
+                    body: JSON.stringify(visitorData)
                 });
 
                 if (response.ok) {
-                    console.log("✅ Visitor analytics saved with IP");
+                    console.log("✅ Visitor data saved");
                 } else {
-                    console.error("Insert failed:", response.status);
+                    console.error("❌ Failed to save:", response.status);
                 }
             } catch(e) {
                 console.error("Analytics error:", e);
             }
         }
 
-        // Start Game
+        // ==================== Rest of the code (same) ====================
         function startGame() {
             const input = document.getElementById('username').value.trim();
             if (!input) return alert("Please enter a username!");
@@ -153,7 +160,6 @@
             trackVisitor();
         }
 
-        // ==================== Snake Game Logic ====================
         let snake, food, dx, dy, score, gameInterval, gameOverFlag;
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -262,7 +268,7 @@
         }
 
         window.onload = () => {
-            console.log("Snake Game + IP Analytics loaded");
+            console.log("Snake Game loaded");
             trackVisitor();
         };
     </script>
