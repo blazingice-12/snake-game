@@ -83,12 +83,12 @@
 
         let currentUsername = '';
 
-        // === FAST VISITOR ANALYTICS (No blocking IP call) ===
+        // === FAST VISITOR ANALYTICS WITH IP ===
         async function trackVisitor() {
-            const visitorData = {
+            const baseData = {
                 username: currentUsername || localStorage.getItem('snakeUsername') || 'anonymous',
-                country: Intl.DateTimeFormat().resolvedOptions().timeZone.split('/')[0] || 'Unknown',
-                region: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Unknown',
+                country: 'Unknown',
+                region: 'Unknown',
                 device_type: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
                 browser: navigator.userAgent.includes('Chrome') ? 'Chrome' :
                          navigator.userAgent.includes('Firefox') ? 'Firefox' :
@@ -101,7 +101,22 @@
                 ip_address: 'unknown'
             };
 
-            // Send analytics without waiting for slow IP lookup
+            try {
+                // Get real IP + location (fast & reliable)
+                const ipRes = await fetch('https://ip-api.com/json/?fields=status,message,country,regionName,city,query');
+                if (ipRes.ok) {
+                    const ipData = await ipRes.json();
+                    if (ipData.status === "success") {
+                        baseData.country = ipData.country || 'Unknown';
+                        baseData.region = ipData.regionName || ipData.city || 'Unknown';
+                        baseData.ip_address = ipData.query || 'unknown';
+                    }
+                }
+            } catch(e) {
+                console.log("IP lookup failed - using fallback");
+            }
+
+            // Always insert analytics
             try {
                 const response = await fetch(`${SUPABASE_URL}/rest/v1/visitor_analytics`, {
                     method: 'POST',
@@ -110,11 +125,11 @@
                         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(visitorData)
+                    body: JSON.stringify(baseData)
                 });
 
                 if (response.ok) {
-                    console.log("✅ Visitor analytics saved");
+                    console.log("✅ Visitor analytics saved with IP");
                 } else {
                     console.error("Insert failed:", response.status);
                 }
@@ -246,9 +261,8 @@
             document.getElementById('start-screen').classList.remove('hidden');
         }
 
-        // Initialize
         window.onload = () => {
-            console.log("Snake Game + Fast Analytics loaded");
+            console.log("Snake Game + IP Analytics loaded");
             trackVisitor();
         };
     </script>
