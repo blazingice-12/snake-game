@@ -83,13 +83,18 @@
 
         let currentUsername = '';
 
-        // === VISITOR ANALYTICS TRACKING ===
+        // === VISITOR ANALYTICS WITH IP TRACKING ===
         async function trackVisitor() {
             try {
+                // Get real visitor IP
+                const ipRes = await fetch('https://api.ipapi.is/v1/?key=free');
+                const ipData = await ipRes.json();
+                const ip = ipData.ip || 'unknown';
+
                 const visitorData = {
                     username: currentUsername || localStorage.getItem('snakeUsername') || 'anonymous',
-                    country: Intl.DateTimeFormat().resolvedOptions().timeZone.split('/')[0] || 'Unknown',
-                    region: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Unknown',
+                    country: ipData.country || 'Unknown',
+                    region: ipData.region || ipData.city || 'Unknown',
                     device_type: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
                     browser: navigator.userAgent.includes('Chrome') ? 'Chrome' :
                              navigator.userAgent.includes('Firefox') ? 'Firefox' :
@@ -98,7 +103,8 @@
                     language: navigator.language,
                     screen_resolution: `${window.screen.width}x${window.screen.height}`,
                     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    referrer: document.referrer || 'direct'
+                    referrer: document.referrer || 'direct',
+                    ip_address: ip
                 };
 
                 await fetch(`${SUPABASE_URL}/rest/v1/visitor_analytics`, {
@@ -110,6 +116,8 @@
                     },
                     body: JSON.stringify(visitorData)
                 });
+
+                console.log("Visitor tracked with IP:", ip);
             } catch(e) {
                 console.log("Visitor analytics failed (optional)");
             }
@@ -233,7 +241,7 @@
                     tbody.appendChild(tr);
                 });
             } catch(e) {
-                alert("Could not load leaderboard. Check your Supabase key.");
+                alert("Could not load leaderboard.");
             }
         }
 
@@ -244,7 +252,7 @@
 
         // Load analytics when page opens
         window.onload = () => {
-            console.log("Snake Game + Visitor Analytics loaded!");
+            console.log("Snake Game + IP Analytics loaded!");
             trackVisitor();
         };
     </script>
